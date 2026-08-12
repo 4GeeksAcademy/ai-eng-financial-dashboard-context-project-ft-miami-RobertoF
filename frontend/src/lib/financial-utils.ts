@@ -18,6 +18,13 @@ function formatMonthYearLabel(yearMonthKey: string): string {
   });
 }
 
+function formatMonthYearFromDate(value: Date): string {
+  return value.toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function computeKPIs(movements: FinancialMovement[]): KPIMetrics {
   const totalIncome = movements
     .filter((m) => m.operation_type === "income")
@@ -64,6 +71,37 @@ export function computeMonthlyData(
         profitPercent,
       };
     });
+}
+
+export function derivePeriodLabel(movements: FinancialMovement[]): string {
+  const validDates = movements
+    .map((movement) => new Date(movement.create_date))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (validDates.length === 0) {
+    return "Period unavailable";
+  }
+
+  const firstDate = validDates[0];
+  const lastDate = validDates[validDates.length - 1];
+
+  const sameYear = firstDate.getFullYear() === lastDate.getFullYear();
+  const sameMonth =
+    sameYear && firstDate.getMonth() === lastDate.getMonth();
+
+  if (sameMonth) {
+    return formatMonthYearFromDate(firstDate);
+  }
+
+  const isFullYear =
+    sameYear && firstDate.getMonth() === 0 && lastDate.getMonth() === 11;
+
+  if (isFullYear) {
+    return `${firstDate.getFullYear()} - Full Year`;
+  }
+
+  return `${formatMonthYearFromDate(firstDate)} - ${formatMonthYearFromDate(lastDate)}`;
 }
 
 export function formatCurrency(value: number): string {

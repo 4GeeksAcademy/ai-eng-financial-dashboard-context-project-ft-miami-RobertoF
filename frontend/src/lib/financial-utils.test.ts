@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeKPIs,
   computeMonthlyData,
+  derivePeriodLabel,
   formatCurrency,
   formatPercent,
 } from "./financial-utils";
@@ -110,5 +111,53 @@ describe("formatters", () => {
 
   it("formats percent with one decimal", () => {
     expect(formatPercent(15.555)).toBe("15.6%");
+  });
+});
+
+describe("derivePeriodLabel", () => {
+  it("returns full-year label when data spans Jan to Dec in same year", () => {
+    const yearMovements: FinancialMovement[] = [
+      {
+        create_date: "2025-12-12",
+        amount: 200,
+        operation_type: "income",
+        category: "sales",
+        business_type: "B2B",
+      },
+      {
+        create_date: "2025-01-05",
+        amount: 100,
+        operation_type: "income",
+        category: "sales",
+        business_type: "B2C",
+      },
+    ];
+
+    expect(derivePeriodLabel(yearMovements)).toBe("2025 - Full Year");
+  });
+
+  it("returns ranged month label for cross-year data", () => {
+    const crossYearMovements: FinancialMovement[] = [
+      {
+        create_date: "2025-11-05",
+        amount: 100,
+        operation_type: "income",
+        category: "sales",
+        business_type: "B2B",
+      },
+      {
+        create_date: "2026-02-03",
+        amount: 80,
+        operation_type: "outcome",
+        category: "operational",
+        business_type: "B2B",
+      },
+    ];
+
+    expect(derivePeriodLabel(crossYearMovements)).toBe("Nov 2025 - Feb 2026");
+  });
+
+  it("returns fallback label for empty data", () => {
+    expect(derivePeriodLabel([])).toBe("Period unavailable");
   });
 });
