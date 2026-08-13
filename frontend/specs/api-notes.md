@@ -169,3 +169,93 @@ None observed. The `/docs` schema (`MetricsFacets`) matches the actual response 
 | `GET /api/metrics/facets` | None. Schema and actual response match exactly. |
 | `GET /api/metrics/alerts` | None. The `/docs` correctly shows `threshold` with `minimum: 0` and no maximum — the behavior where `threshold=2.0` returns `[]` (not an error) is consistent with this. |
 | `GET /api/metrics/categories/top` | None. Schema and actual response match exactly. |
+
+---
+
+## Cross-endpoint check: Date param naming consistency
+
+Every endpoint that accepts a date range uses the **same param names**:
+`start_date` and `end_date`, both formatted as `YYYY-MM-DD` ISO date
+strings. Verified by reading the source route definitions:
+
+| Endpoint | `start_date` | `end_date` | Required? |
+|----------|--------------|------------|-----------|
+| `GET /api/metrics` | `Query(default=None)` | `Query(default=None)` | No |
+| `GET /api/metrics/summary` | `Query(default=None)` | `Query(default=None)` | No |
+| `GET /api/metrics/categories/top` | `Query(default=None)` | `Query(default=None)` | No |
+| `GET /api/metrics/alerts` | `Query(default=None)` | `Query(default=None)` | No |
+| `GET /api/metrics/comparison` | `Query(...)` | `Query(...)` | **Yes** |
+| `GET /api/metrics/b2b` | `Query(default=None)` | `Query(default=None)` | No |
+| `GET /api/metrics/b2c` | `Query(default=None)` | `Query(default=None)` | No |
+
+**Consistency finding:** All endpoints use `start_date` / `end_date` with
+`YYYY-MM-DD` format — **no naming inconsistency**. However, one endpoint
+(`GET /api/metrics/comparison`) makes both params **required** (`Query(...)`
+with no default), while every other endpoint makes them optional
+(`Query(default=None)`). The three endpoints in scope for this project
+(facets, alerts, categories/top) all use the optional pattern, so this is
+not a bug for the current features, but it is a notable difference that
+would need to be handled if the comparison endpoint were used.
+
+---
+
+## Cross-endpoint check: Error response shape
+
+All validation errors follow the same Pydantic error shape, verified by
+triggering three different 422 responses:
+
+```json
+{
+  "detail": [
+    {
+      "type": "greater_than_equal",
+      "loc": ["query", "threshold"],
+      "msg": "Input should be greater than or equal to 0",
+      "input": "-1",
+      "ctx": { "ge": 0.0 }
+    }
+  ]
+}
+```
+
+The shape is consistent across all endpoints tested:
+
+| Field | Type | Always present | Notes |
+|-------|------|----------------|-------|
+| `detail` | `array` | Yes | Top-level wrapper. Always an array of error objects. |
+| `detail[].type` | `string` | Yes | Machine-readable error type (e.g. `"greater_than_equal"`, `"literal_error"`, `"date_from_datetime_parsing"`). |
+| `detail[].loc` | `[string, string]` | Yes | Which parameter failed: `["query", "<param_name>"]`. |
+| `detail[].msg` | `string` | Yes | Human-readable error description. |
+| `detail[].input` | `string` | Yes | The raw value that was rejected. |
+| `detail[].ctx` | `object` | Only for constraint violations | Contains the constraint that was violated (e.g. `{"ge": 0.0}`, `{"le": 20}`, `{"expected": "'income' or 'outcome'"}`). |
+
+**Evidence:**
+- `threshold=-1` → 422, `type: "greater_than_equal"`, `ctx: {"ge": 0.0}`
+- `limit=0` → 422, `type: "greater_than_equal"`, `ctx: {"ge": 1}`
+- `limit=25` → 422, `type: "less_than_equal"`, `ctx: {"le": 20}`
+- `operation_type=bogus` → 422, `type: "literal_error"`, `ctx: {"expected": "'income' or 'outcome'"}`
+- `start_date=not-a-date` → 422, `type: "date_from_datetime_parsing"`, `ctx: {"error": "invalid character in year"}`
+
+**Key takeaway:** The API never returns a 200 with an error body. All errors
+are HTTP 422 with this standard Pydantic shape. There is no custom error
+formatting, no 4xx with a different body shape, and no use of HTTP 400.
+
+---
+
+## Cross-endpoint check: Auth / headers requirement
+
+**None of the three endpoints require any authentication, authorization, or
+custom headers.** A plain `GET` with no `Authorization`, `Cookie`, `X-API-Key`,
+or any other header returns HTTP 200 with the normal response body.
+
+**Evidence:**
+- `GET /api/metrics/facets` (no headers) → **200** with full response
+- `GET /api/metrics/alerts?threshold=0.3` (no headers) → **200** with full response
+- `GET /api/metrics/categories/top?operation_type=income&limit=5` (no headers) → **200** with full response
+- `OPTIONS /api/metrics/facets` (no headers) → **405** (Method Not Allowed — endpoint only accepts `GET`)
+
+The backend also has CORS configured as `allow_origins=["*"]` (visible in
+`main.py`), so no preflight headers are needed for local development.
+
+**Key takeaway:** No auth/token/header notes are needed in the spec. A
+plain `GET` suffices for all three endpoints.
