@@ -14,8 +14,10 @@ Status: Completed for this cycle.
 
 ## Refinements Made
 
-Updated rule file:
-- [.agents/rules/frontend-data-period-and-error-rules.md](../.agents/rules/frontend-data-period-and-error-rules.md)
+Updated rule files:
+- [.agents/rules/frontend-data-and-ux-rules.md](../.agents/rules/frontend-data-and-ux-rules.md)
+- [.agents/rules/backend-api-and-runtime-rules.md](../.agents/rules/backend-api-and-runtime-rules.md)
+- [.agents/rules/testing-and-delivery-rules.md](../.agents/rules/testing-and-delivery-rules.md)
 
 Refined policy:
 1. Require derived period labels from data when data exists.

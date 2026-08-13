@@ -4,8 +4,10 @@ Status: Completed and validated by implementation and tests.
 
 ## Rules Drafted
 
-Document:
-- [.agents/rules/frontend-data-period-and-error-rules.md](../.agents/rules/frontend-data-period-and-error-rules.md)
+Documents:
+- [.agents/rules/frontend-data-and-ux-rules.md](../.agents/rules/frontend-data-and-ux-rules.md)
+- [.agents/rules/backend-api-and-runtime-rules.md](../.agents/rules/backend-api-and-runtime-rules.md)
+- [.agents/rules/testing-and-delivery-rules.md](../.agents/rules/testing-and-delivery-rules.md)
 
 Initial goals:
 1. Remove hardcoded reporting period labels in the dashboard.
